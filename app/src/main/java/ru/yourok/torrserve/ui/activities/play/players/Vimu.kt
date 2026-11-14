@@ -41,7 +41,6 @@ object Vimu {
         }
         // Also pass 0 to explicitly start from the beginning when /viewed has no position.
         intent.putExtra("startfrom", startMs)
-        intent.putExtra("position", startMs)
         Log.i("VimuSync", "Launching Vimu with server startMs=$startMs fileIndex=$index and isolated URL")
         intent.setDataAndType(Uri.parse(link), mime)
 
