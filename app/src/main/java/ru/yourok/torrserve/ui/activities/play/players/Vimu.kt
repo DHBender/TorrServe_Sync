@@ -2,13 +2,17 @@ package ru.yourok.torrserve.ui.activities.play.players
 
 import android.content.Intent
 import android.net.Uri
+import ru.yourok.torrserve.server.api.Viewed
 import ru.yourok.torrserve.server.models.torrent.Torrent
 import ru.yourok.torrserve.utils.Mime
 import ru.yourok.torrserve.utils.TorrentHelper
 import java.io.File
 
 object Vimu {
-    fun getIntent(pkg: String, torrent: Torrent, index: Int): Intent {
+    fun isVimuIntent(intent: Intent): Boolean =
+        intent.`package` == "net.gtvbox.videoplayer" || intent.`package` == "net.gtvbox.vimuhd"
+
+    fun getIntent(pkg: String, torrent: Torrent, index: Int, viewed: List<Viewed> = emptyList()): Intent {
         val link = TorrentHelper.getTorrentPlayLink(torrent, index)
 
         val file = TorrentHelper.findFile(torrent, index) ?: throw Exception("file in torrent not found")
@@ -18,7 +22,16 @@ object Vimu {
         intent.setPackage(pkg)
         intent.putExtra("forcename", torrent.title)
         intent.putExtra("forcedirect", true)
-        intent.putExtra("forceresume", true)
+        // TorrServer is the only resume authority. Don't use Vimu's local resume.
+        intent.putExtra("forceresume", false)
+        val seconds = viewed.firstOrNull {
+            it.hash.equals(torrent.hash, ignoreCase = true) && it.file_index == index
+        }?.timecode
+        if (seconds != null && seconds.isFinite() && seconds > 0.0) {
+            val ms = (seconds * 1000.0).toLong()
+                .coerceIn(1L, Int.MAX_VALUE.toLong()).toInt()
+            intent.putExtra("startfrom", ms)
+        }
         intent.setDataAndType(Uri.parse(link), mime)
 
         val torrfiles = TorrentHelper.getPlayableFiles(torrent)

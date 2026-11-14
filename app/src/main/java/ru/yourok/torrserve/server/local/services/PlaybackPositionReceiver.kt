@@ -1,5 +1,6 @@
 package ru.yourok.torrserve.server.local.services
 
+import android.app.Activity
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -85,11 +86,54 @@ class PlaybackPositionReceiver : BroadcastReceiver() {
         private const val EXTRA_PLAYER = "player"
         private const val EXTRA_HASH = "hash"
         private const val EXTRA_FILE_IDS = "file_ids"
+        private const val VIMU_PLAYER = "net.gtvbox.videoplayer"
+        private const val VIMU_RESULT_CODE = "vimu_result_code"
+
+        /** No direct player IPC: the wrapper Activity forwards the Vimu result to this receiver. */
+        fun reportVimuResult(
+            context: Context,
+            hash: String,
+            fileId: Int,
+            resultCode: Int,
+            positionMs: Int,
+            durationMs: Int
+        ) {
+            if (hash.isBlank() || fileId <= 0) return
+            val report = Intent(context, PlaybackPositionReceiver::class.java).apply {
+                action = ACTION
+                putExtra(EXTRA_PLAYER, VIMU_PLAYER)
+                putExtra(EXTRA_HASH, hash)
+                putExtra(EXTRA_FILE_IDS, intArrayOf(fileId))
+                putExtra(VIMU_RESULT_CODE, resultCode)
+                putExtra("position", positionMs)
+                putExtra("duration", durationMs)
+            }
+            context.sendBroadcast(report)
+        }
+
+        /** Vimu's position/duration are milliseconds; TorrServer's timecode is seconds. */
+        private fun parseVimuResult(intent: Intent): List<PlaybackState> {
+            val code = intent.getIntExtra(VIMU_RESULT_CODE, -1)
+            val position = intent.getIntExtra("position", -1)
+            val duration = intent.getIntExtra("duration", -1)
+            val now = System.currentTimeMillis()
+            return when {
+                code == Activity.RESULT_FIRST_USER ->
+                    listOf(PlaybackState(0, 0L, duration.coerceAtLeast(0).toLong(), now))
+                code in setOf(Activity.RESULT_CANCELED, 2, 3) &&
+                    position > 0 && duration > 0 -> {
+                    val completed = position.toLong() * 100L >= duration.toLong() * 96L
+                    listOf(PlaybackState(0, if (completed) 0L else position.toLong(), duration.toLong(), now))
+                }
+                else -> emptyList() // Error, missing position, or a zero-length session.
+            }
+        }
 
         /** Result parsers by player id. */
         private val parsers: Map<String, (Intent) -> List<PlaybackState>> = mapOf(
             MagnetSeries.PACKAGE to MagnetSeries::parseResult,
-            JustPlus.PACKAGE to JustPlus::parseResult
+            JustPlus.PACKAGE to JustPlus::parseResult,
+            VIMU_PLAYER to ::parseVimuResult
         )
 
         /**
