@@ -76,6 +76,11 @@
         </activity>
 
         <activity
+            android:name="ru.yourok.torrserve.ui.activities.play.VimuResultActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <activity
             android:name="ru.yourok.torrserve.ui.activities.play.PlayActivity"
             android:configChanges="uiMode"
             android:excludeFromRecents="true"

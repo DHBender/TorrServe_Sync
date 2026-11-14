@@ -15,6 +15,7 @@ import ru.yourok.torrserve.server.api.Viewed
 import ru.yourok.torrserve.server.models.torrent.Torrent
 import ru.yourok.torrserve.settings.Settings
 import ru.yourok.torrserve.ui.activities.play.players.Players
+import ru.yourok.torrserve.ui.activities.play.players.Vimu
 import ru.yourok.torrserve.ui.dialogs.PlayersDialog
 import ru.yourok.torrserve.ui.fragments.play.TorrentFilesFragment
 import ru.yourok.torrserve.utils.TorrentHelper
@@ -147,15 +148,7 @@ object Play {
                 PlayersDialog.show(this, torr, index) { player ->
                     playerIntent = Players.getIntent(torr, index, player, callback, viewed)
                     //if (BuildConfig.DEBUG) Log.d("*****", "Player intent: ${playerIntent?.toUri(0)}")
-                    playerIntent?.let {
-                        it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        try {
-                            App.context.startActivity(it)
-                            successful(it)
-                        } catch (e: Exception) {
-                            error(ErrProcessIntent)
-                        }
-                    }
+                    playerIntent?.let { launchPlayer(it, torr, index) }
                 }
             } else
                 playerIntent = Players.getIntent(torr, index, null, callback, viewed)
@@ -163,14 +156,24 @@ object Play {
             e.message?.let { App.toast(it) }
         }
         //if (BuildConfig.DEBUG) Log.d("*****", "Player intent: ${playerIntent?.toUri(0)}")
-        playerIntent?.let {
-            it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            try {
-                App.context.startActivity(it)
-                successful(it)
-            } catch (e: Exception) {
-                error(ErrProcessIntent)
-            }
+        playerIntent?.let { launchPlayer(it, torr, index) }
+    }
+
+    /** Vimu gets a result-owning Activity; PlayActivity may finish immediately as before. */
+    private fun PlayActivity.launchPlayer(playerIntent: Intent, torrent: Torrent, index: Int) {
+        val toLaunch = if (Vimu.isVimuIntent(playerIntent)) {
+            val allowedIds = TorrentHelper.getPlayableFiles(torrent).map { it.id }.toIntArray()
+            VimuResultActivity.wrap(this, playerIntent, torrent.hash, index, allowedIds)
+        } else {
+            playerIntent
+        }
+        toLaunch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        try {
+            App.context.startActivity(toLaunch)
+            successful(playerIntent) // Preserve caller (NUM) result compatibility.
+        } catch (e: Exception) {
+            Log.e("VimuSync", "Unable to start player", e)
+            error(ErrProcessIntent)
         }
     }
 }

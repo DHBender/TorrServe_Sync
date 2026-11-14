@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    compileSdk 37
+    compileSdk = (project.findProperty('ciCompileSdk') ?: '37').toString().toInteger()
     defaultConfig {
         applicationId "ru.yourok.torrserve"
         minSdkVersion 16
@@ -21,6 +21,11 @@ android {
         vectorDrawables.useSupportLibrary = true
     }
     buildTypes {
+        // Parallel install with the original ru.yourok.torrserve on both TV boxes.
+        debug {
+            applicationIdSuffix ".sync"
+            versionNameSuffix "-sync"
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
