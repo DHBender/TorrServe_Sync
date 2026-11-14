@@ -6,7 +6,7 @@ Source: Android TorrServe MatriX.145.Client. TorrServer stays MatriX.146.
 
 - NUM continues to open the TorrServe Android client.
 - TorrServe reads `POST /viewed` before playback, keyed by `hash + file_index`.
-- Vimu is launched with `startfrom` and `position` in **milliseconds**, and `forceresume=false`.
+- Vimu is launched with `startfrom` in **milliseconds**, and `forceresume=false`.
 - Every launch gets a unique `/stream/tsync_<uuid>_<index>.<extension>` basename for each
   file in the playlist, with `link=<hash>&index=<fileId>&play` preserved. MatriX
   streams the exact same file; it ignores the URL basename when playing.
