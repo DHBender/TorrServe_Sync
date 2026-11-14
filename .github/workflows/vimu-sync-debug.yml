@@ -20,9 +20,12 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: gradle
-      - uses: android-actions/setup-android@v3
-      - name: Android SDK 37
-        run: sdkmanager --install "platforms;android-37" "build-tools;37.0.0"
+      - name: Prepare preinstalled Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          sdkmanager --version
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager --install "platforms;android-37" "build-tools;37.0.0"
       - name: Assemble side-by-side debug APK
         run: |
           chmod +x gradlew
