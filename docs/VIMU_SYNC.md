@@ -6,7 +6,12 @@ Source: Android TorrServe MatriX.145.Client. TorrServer stays MatriX.146.
 
 - NUM continues to open the TorrServe Android client.
 - TorrServe reads `POST /viewed` before playback, keyed by `hash + file_index`.
-- Vimu is launched with `startfrom` in **milliseconds** and `forceresume=false`.
+- Vimu is launched with `startfrom` and `position` in **milliseconds**, and `forceresume=false`.
+- Every launch gets a unique `/stream/tsync_<uuid>_<index>.<extension>` basename for each
+  file in the playlist, with `link=<hash>&index=<fileId>&play` preserved. MatriX
+  streams the exact same file; it ignores the URL basename when playing.
+  Vimu therefore has no prior filename-based resume record to compete with `/viewed`.
+  This uses **no proxy, no additional network hop, and no TorrServer changes**.
 - A transparent activity owns the Vimu activity result while the original PlayActivity
   still finishes and reports to NUM as before.
 - For playlists, the result URL's `link` and `index` query parameters identify the
@@ -31,18 +36,22 @@ Gradle plugin requirements; telemetry collection is disabled in the debug manife
 2. Choose the TEST client once when NUM asks which app should handle the torrent.
 3. Start one episode, stop by Back at 35:20, then verify the matching `file_index`
    using `POST /viewed` with `{"action":"list","hash":"..."}`.
-4. Restart the same episode on TV box 2 with TEST client and Vimu. Confirm resume.
-5. Switch episodes inside Vimu, exit by Back, verify **only the last episode**
+4. On TV box 2, first watch the same video at a *different* position using the
+   original Vimu, then exit to create conflicting Vimu local history.
+5. Restart the same episode with TEST client on box 2 and Vimu. Confirm that
+   the **server's** position wins instead of showing the old local resume prompt.
+6. Switch episodes inside Vimu, exit by Back, verify **only the last episode**
    received the updated timecode.
-6. Check `adb logcat -s VimuSync:I PlaybackPosition:V` for the result, and test
+7. Check `adb logcat -s VimuSync:I PlaybackPosition:V` for the result, and test
    early exit, completion, playback error and missing network independently.
 
 ## Known limitations
 
 - No periodic player progress API. Force-close, sudden power loss and pressing Home
   without actually exiting Vimu may not trigger an activity result.
-- Vimu may still use local filename-based resume on some configurations; validate
-  the startfrom/forceresume interaction on installed Vimu 12.50.
+- The unique URL basename is verified against the MatriX.146 stream handler, but
+  Vimu 12.50's real UI behavior still requires an SK-1 and Shield regression test.
+  Check in particular whether an old local resume popup remains after the change.
 - MatriX /viewed has no atomic compare-and-swap or timestamps; concurrent play on
   two boxes is last-write-wins. No reliable conflict arbitration without server work.
 - Builds and physical devices must be tested; source changes alone do not prove success.
